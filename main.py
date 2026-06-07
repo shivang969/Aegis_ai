@@ -58,14 +58,13 @@ def analyze_transaction(data: TransactionData):
     else:
         action = "APPROVE"
         
+    # Force all NumPy types to native Python types before sending to React
     return {
-        "status": "success",
-        "risk_score": final_risk_percentage,
-        "action": action,
-        "layer_1_anomaly": s_anomaly,
-        "layer_2_supervised": round(p_supervised * 100, 2)
+        "risk_score": round(float(final_risk_percentage), 2),
+        "action": str(action),
+        "layer_2_supervised": round(float(xgboost_prob * 100), 2),
+        "layer_1_anomaly": float(anomaly_pred[0])  # Or however your anomaly variable is named
     }
-
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
