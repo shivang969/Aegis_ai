@@ -43,28 +43,33 @@ def analyze_transaction(data: TransactionData):
     # --- The Aegis Tri-Layer Math Formula ---
     weight_supervised = 0.7
     
-    p_supervised = xgb_model.predict_proba(input_df)[:, 1][0]
+    # 🚨 CRITICAL FIX: Force the NumPy array output into a native Python float
+    p_supervised = float(xgb_model.predict_proba(input_df)[:, 1][0])
     
     raw_anomaly = iso_forest.predict(input_df)[0]
+    # This is already a standard Python float
     s_anomaly = 1.0 if raw_anomaly == -1 else 0.0
     
+    # Because p_supervised is now clean, r_score and final_risk_percentage will be clean too
     r_score = (weight_supervised * p_supervised) + ((1 - weight_supervised) * s_anomaly)
     final_risk_percentage = round(r_score * 100, 2)
     
-    if final_risk_percentage > 80:
+    # Hackathon Demo Thresholds
+    if final_risk_percentage > 65:
         action = "FREEZE"
-    elif final_risk_percentage > 50:
+    elif final_risk_percentage > 30:
         action = "REVIEW"
     else:
         action = "APPROVE"
         
-    # Force all NumPy types to native Python types before sending to React
     return {
-        "risk_score": round(float(final_risk_percentage), 2),
-        "action": str(action),
-        "layer_2_supervised": round(float(xgboost_prob * 100), 2),
-        "layer_1_anomaly": float(anomaly_pred[0])  # Or however your anomaly variable is named
+        "status": "success",
+        "risk_score": final_risk_percentage,
+        "action": action,
+        "layer_1_anomaly": s_anomaly,
+        "layer_2_supervised": round(p_supervised * 100, 2)
     }
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
